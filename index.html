@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Je váš pes připravený na HAFťák?</title>
+<style>
+  /* Barvy Granule Jehlička. Na obou je tmavý text, bílá na nich má
+     kontrast jen 3,09:1 a 2,56:1, což je pod hranicí čitelnosti. */
+  :root {
+    --modra: #009cdd;
+    --zluta: #db9319;
+    --ink: #0a2330;
+    --muted: #5b6b73;
+    --line: #dfe6ea;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: transparent; }
+  body {
+    margin: 0; padding: 0;
+    color: var(--ink);
+    font: 16px/1.6 -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  .kviz {
+    max-width: 640px; margin: 0 auto; background: var(--card);
+    border-radius: 16px; overflow: hidden;
+    box-shadow: 0 4px 18px rgba(10,35,48,.10);
+  }
+  .kviz-head { background: var(--modra); color: var(--ink); padding: 22px 26px; }
+  .kviz-head h2 { margin: 0 0 4px; font-size: 21px; line-height: 1.25; }
+  .kviz-head p { margin: 0; font-size: 14px; opacity: .85; }
+
+  .progress { height: 6px; background: #e8eef1; }
+  .progress span { display: block; height: 100%; width: 0;
+    background: var(--zluta); transition: width .25s ease; }
+
+  .kviz-body { padding: 22px 24px; }
+  .otazka { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
+  .pocitadlo { font-size: 13px; color: var(--muted); margin: 0 0 18px; }
+
+  .volby { display: grid; gap: 10px; }
+  .volba {
+    text-align: left; font: inherit; cursor: pointer;
+    background: #fff; color: var(--ink);
+    border: 2px solid var(--line); border-radius: 10px;
+    padding: 13px 16px; transition: border-color .15s, background .15s;
+  }
+  .volba:hover { border-color: var(--modra); background: #f2fafe; }
+  .volba:focus-visible { outline: 3px solid var(--zluta); outline-offset: 2px; }
+
+  .vysledek h3 { margin: 0 0 6px; font-size: 20px; }
+  .znamka {
+    display: inline-block; font-size: 13px; font-weight: 700;
+    padding: 5px 12px; border-radius: 999px; margin-bottom: 14px;
+    background: var(--zluta); color: var(--ink);
+  }
+  .vysledek p { margin: 0 0 10px; }
+  .vysledek ul { margin: 0 0 12px; padding-left: 18px; }
+  .vysledek li { margin-bottom: 5px; }
+  .vysledek a { color: #007ab0; }
+
+  .akce { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .btn {
+    display: inline-block; font: inherit; font-weight: 700; cursor: pointer;
+    text-decoration: none; padding: 12px 22px; border-radius: 9px; border: 2px solid transparent;
+  }
+  /* Zluta na hlavni akci: kontrast 6,33:1 a odlisi se od modre hlavicky */
+  .btn-primar { background: var(--zluta); color: var(--ink); }
+  .btn-sekundar { background: #fff; color: var(--ink); border-color: var(--line); }
+  .btn:hover { opacity: .9; }
+</style>
+</head>
+<body>
+
+<div class="kviz">
+  <div class="kviz-head">
+    <h2>Je váš pes připravený na HAFťák?</h2>
+    <p>Šest otázek, necelou minutu času.</p>
+  </div>
+  <div class="progress"><span id="bar"></span></div>
+  <div class="kviz-body" id="tělo"></div>
+</div>
+
+<script>
+(function () {
+  var OTAZKY = [
+    {
+      q: "Má pes platné povinné očkování a máte u sebe průkaz?",
+      a: [
+        ["Ano, průkaz je připravený", 2],
+        ["Očkování platí, průkaz musím najít", 1],
+        ["Nevím, musím to zkontrolovat", 0]
+      ]
+    },
+    {
+      q: "Kolik toho spolu běžně ujdete?",
+      a: [
+        ["Pravidelně chodíme na delší výlety", 2],
+        ["Občas si dáme delší procházku", 1],
+        ["Spíš krátké procházky po okolí", 0]
+      ]
+    },
+    {
+      q: "V jakém stavu má pes tlapky?",
+      a: [
+        ["Polštářky jsem kontroloval a jsou v pořádku", 2],
+        ["Nekontroloval jsem je", 1],
+        ["Jsou popraskané nebo zarudlé", 0]
+      ]
+    },
+    {
+      q: "Jak pes zvládá míjení jiných psů na vodítku?",
+      a: [
+        ["V klidu projde kolem", 2],
+        ["Občas zabere, ale zvládneme to", 1],
+        ["Je to zatím problém", 0]
+      ]
+    },
+    {
+      q: "Máte sbalené vodítko, známku s kontaktem, vodu s miskou a sáčky?",
+      a: [
+        ["Všechno mám", 2],
+        ["Něco z toho chybí", 1],
+        ["Zatím nic", 0]
+      ]
+    },
+    {
+      q: "Čím psa krmíte?",
+      a: [
+        ["Krmivem pro aktivní psy", 2],
+        ["Běžným kvalitním krmivem", 1],
+        ["Nevím, co pes při zátěži potřebuje", 0]
+      ]
+    }
+  ];
+
+  var VYSLEDKY = [
+    {
+      min: 10,
+      znamka: "Připravení",
+      titulek: "Můžete klidně na start",
+      text: "Máte zkontrolované očkování, kondici i výbavu. Zbývá sbalit batoh den předem a ráno nakrmit s předstihem.",
+      body: [
+        "Polštářky večer před akcí promažte <a href=\"https://www.granulejehlicka.cz/skinpet-mast-na-tlapky-a-cenich--50-ml/\" target=\"_blank\" rel=\"noopener\">mastí SkinPET</a>.",
+        "Do batohu přibalte drobné <a href=\"https://www.granulejehlicka.cz/pamlsky-pro-psy/\" target=\"_blank\" rel=\"noopener\">odměny</a>, které pes spolkne za pochodu.",
+        "Na regeneraci po doběhnutí se hodí <a href=\"https://www.granulejehlicka.cz/bow-wow-proteinova-tycinka-hovezi-lesni-plody/\" target=\"_blank\" rel=\"noopener\">proteinová tyčinka</a>."
+      ]
+    },
+    {
+      min: 6,
+      znamka: "Skoro tam",
+      titulek: "Pár věcí ještě doladit",
+      text: "Základ máte, jen něco zbývá dořešit. Projděte si znovu otázky, u kterých jste váhali.",
+      body: [
+        "Zkontrolujte očkovací průkaz. Na HAFťáku se kontroluje při prezentaci.",
+        "Projděte psovi polštářky a v případě potřeby je ošetřete <a href=\"https://www.granulejehlicka.cz/skinpet-mast-na-tlapky-a-cenich--50-ml/\" target=\"_blank\" rel=\"noopener\">mastí SkinPET</a>.",
+        "Pokud pes chodí na delší trasy pravidelně, zvažte <a href=\"https://www.granulejehlicka.cz/kennels--favourite-active-dog/\" target=\"_blank\" rel=\"noopener\">krmivo pro aktivní psy</a>."
+      ]
+    },
+    {
+      min: 0,
+      znamka: "Zvolna",
+      titulek: "Letos spíš v klidovém tempu",
+      text: "Tři hodiny v terénu jsou na psa zvyklého na krátké procházky hodně. Nic se neděje, trasa se dá projít pomalu a posbírat jen některé kontroly.",
+      body: [
+        "Kondici budujte postupně, delšími výlety.",
+        "Než vyrazíte, ověřte si zdravotní stav a pohybový aparát. Pomůže <a href=\"https://www.granulejehlicka.cz/blog/z-praxe--jak-funguje-fyzioterapie-pro-psy-a-proc-ji-vas-mazlicek-potrebuje--rozhovor-s-jarkou-brinkman/\" target=\"_blank\" rel=\"noopener\">rozhovor s fyzioterapeutkou</a>.",
+        "Nevíte, čím krmit? Napište nám plemeno, věk a váhu na <a href=\"mailto:info@granulejehlicka.cz\">info@granulejehlicka.cz</a>, poradíme zdarma."
+      ]
+    }
+  ];
+
+  var telo = document.getElementById("tělo");
+  var bar = document.getElementById("bar");
+  var krok = 0, skore = 0;
+
+  function vykresliOtazku() {
+    var o = OTAZKY[krok];
+    bar.style.width = (krok / OTAZKY.length * 100) + "%";
+
+    var h = '<p class="otazka">' + o.q + "</p>";
+    h += '<p class="pocitadlo">Otázka ' + (krok + 1) + " z " + OTAZKY.length + "</p>";
+    h += '<div class="volby">';
+    for (var i = 0; i < o.a.length; i++) {
+      h += '<button class="volba" data-b="' + o.a[i][1] + '">' + o.a[i][0] + "</button>";
+    }
+    h += "</div>";
+    telo.innerHTML = h;
+
+    var tlacitka = telo.querySelectorAll(".volba");
+    for (var j = 0; j < tlacitka.length; j++) {
+      tlacitka[j].addEventListener("click", function () {
+        skore += parseInt(this.getAttribute("data-b"), 10);
+        krok++;
+        if (krok < OTAZKY.length) { vykresliOtazku(); } else { vykresliVysledek(); }
+      });
+    }
+  }
+
+  function vykresliVysledek() {
+    bar.style.width = "100%";
+    var v = VYSLEDKY[0];
+    for (var i = 0; i < VYSLEDKY.length; i++) {
+      if (skore >= VYSLEDKY[i].min) { v = VYSLEDKY[i]; break; }
+    }
+    var h = '<div class="vysledek">';
+    h += '<span class="znamka">' + v.znamka + " &middot; " + skore + " z 12 bodů</span>";
+    h += "<h3>" + v.titulek + "</h3>";
+    h += "<p>" + v.text + "</p><ul>";
+    for (var k = 0; k < v.body.length; k++) { h += "<li>" + v.body[k] + "</li>"; }
+    h += "</ul>";
+    h += '<div class="akce">';
+    h += '<a class="btn btn-primar" href="https://www.granulejehlicka.cz/haftak-2026/" target="_blank" rel="noopener">Podrobnosti o HAFťáku 2026</a>';
+    h += '<button class="btn btn-sekundar" id="znovu">Spustit znovu</button>';
+    h += "</div></div>";
+    telo.innerHTML = h;
+
+    document.getElementById("znovu").addEventListener("click", function () {
+      krok = 0; skore = 0; vykresliOtazku();
+    });
+  }
+
+  function ohlasVysku() {
+    if (window.parent === window) { return; }
+    try {
+      var v = document.documentElement.scrollHeight;
+      window.parent.postMessage({ kviz: "haftak", vyska: v }, "*");
+    } catch (e) {}
+  }
+  var puvodniOtazka = vykresliOtazku, puvodniVysledek = vykresliVysledek;
+  vykresliOtazku = function () { puvodniOtazka(); ohlasVysku(); };
+  vykresliVysledek = function () { puvodniVysledek(); ohlasVysku(); };
+
+  vykresliOtazku();
+  window.addEventListener("load", ohlasVysku);
+})();
+</script>
+</body>
+</html>
